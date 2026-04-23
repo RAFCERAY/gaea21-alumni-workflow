@@ -1,7 +1,4 @@
 # Données sensibles (JAMAIS sur GitHub)
-*.xlsx
-*.xls
-*.xlsm
 .streamlit/secrets.toml
 
 # Python
