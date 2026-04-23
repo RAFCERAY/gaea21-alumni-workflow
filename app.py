@@ -139,19 +139,31 @@ def restore_excel_from_secrets():
 
     target_file = EXCEL_FILE_DEFAULT
 
-    # Si fichier déjà présent sur disque, ne rien faire
-    if Path(target_file).exists():
-        return
-
     # Essaie de restaurer depuis les secrets
     try:
         excel_b64 = st.secrets["excel_base64"]
     except (KeyError, FileNotFoundError, Exception):
-        # Pas de secret configuré : on laisse tomber, l'erreur de fichier sera gérée ailleurs
+        # Pas de secret configuré : on laisse tomber
         return
 
+    # Si on est ici, on a un secret → on restaure (écrase fichier existant pour éviter corruption)
     try:
-        excel_bytes = base64.b64decode(excel_b64)
+        # Nettoie le base64 (enlève tous les whitespaces : espaces, retours à la ligne, tabs)
+        import re
+        cleaned_b64 = re.sub(r'\s+', '', str(excel_b64))
+
+        # Décode avec validation (ignore les caractères non-base64)
+        excel_bytes = base64.b64decode(cleaned_b64, validate=False)
+
+        # Vérifie que c'est un fichier xlsx valide (commence par signature ZIP PK)
+        if not excel_bytes.startswith(b'PK'):
+            st.error(
+                "⚠️ Le fichier Excel décodé n'est pas valide (pas un .xlsx). "
+                "Le base64 dans les secrets est peut-être corrompu."
+            )
+            return
+
+        # Écrit le fichier
         with open(target_file, "wb") as f:
             f.write(excel_bytes)
     except Exception as e:
