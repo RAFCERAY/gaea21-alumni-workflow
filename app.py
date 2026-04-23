@@ -127,6 +127,37 @@ def check_password() -> bool:
 # SIDEBAR - CONFIG & DASHBOARD
 # ============================================================================
 
+def restore_excel_from_secrets():
+    """Restaure le fichier Excel depuis les secrets Streamlit Cloud (base64).
+
+    Cette fonction est appelée au démarrage pour reconstituer le fichier Excel
+    sur le serveur Streamlit Cloud (car le fichier n'est pas sur GitHub).
+
+    En local (pas de secret excel_base64), ne fait rien → utilise le fichier sur disque.
+    """
+    import base64
+
+    target_file = EXCEL_FILE_DEFAULT
+
+    # Si fichier déjà présent sur disque, ne rien faire
+    if Path(target_file).exists():
+        return
+
+    # Essaie de restaurer depuis les secrets
+    try:
+        excel_b64 = st.secrets["excel_base64"]
+    except (KeyError, FileNotFoundError, Exception):
+        # Pas de secret configuré : on laisse tomber, l'erreur de fichier sera gérée ailleurs
+        return
+
+    try:
+        excel_bytes = base64.b64decode(excel_b64)
+        with open(target_file, "wb") as f:
+            f.write(excel_bytes)
+    except Exception as e:
+        st.error(f"Erreur restauration fichier Excel : {e}")
+
+
 def render_sidebar():
     st.sidebar.title("🌱 Gaea21 Alumni Hub")
     st.sidebar.caption("Enrichissement data gouvernance")
@@ -776,6 +807,9 @@ def page_brief(file_path: str):
 # ============================================================================
 
 def main():
+    # Restaure le fichier Excel depuis les secrets (si déployé sur Streamlit Cloud)
+    restore_excel_from_secrets()
+
     # Check authentification avant tout affichage
     if not check_password():
         return
